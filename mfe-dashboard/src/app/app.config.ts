@@ -1,0 +1,30 @@
+/**
+ * ============================================================================
+ * MFE-DASHBOARD - App Config
+ * ============================================================================
+ * 
+ * 📖 WHAT THIS FILE DOES:
+ * Configures the Dashboard MFE as a standalone Angular application.
+ * Includes HTTP client with auth interceptor for API calls.
+ */
+
+import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { routes } from './app.routes';
+import { authInterceptor } from '@shared/auth';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideZoneChangeDetection({ eventCoalescing: true }),
+
+    provideRouter(
+      routes,
+      withComponentInputBinding()
+    ),
+
+    provideHttpClient(
+      withInterceptors([authInterceptor])
+    ),
+  ]
+};

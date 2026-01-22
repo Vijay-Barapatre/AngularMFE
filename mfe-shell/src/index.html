@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MFE Shell - Micro Frontend Architecture POC</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Angular Micro Frontend Architecture POC demonstrating authentication, authorization, and cross-MFE communication">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  
+  <!-- 
+    ============================================================================
+    MFE SHELL - INDEX.HTML
+    ============================================================================
+    
+    📖 This is the entry point for the Shell application.
+    
+    In a Module Federation setup:
+    - This HTML loads the Shell's JavaScript
+    - Shell then dynamically loads remote MFEs at runtime
+    - Remote MFEs (Dashboard, Settings) have their own entry points
+    
+    🔐 Security Note:
+    - Content Security Policy (CSP) headers should be set by your server
+    - For development, we're not setting restrictive CSP
+  -->
+</head>
+<body>
+  <!-- 
+    ANGULAR ROOT COMPONENT
+    The <app-root> tag is replaced by Angular with the AppComponent template.
+    
+    The message below is shown briefly while Angular bootstraps.
+  -->
+  <app-root>
+    <!-- Loading indicator while Angular initializes -->
+    <div style="
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: system-ui, sans-serif;
+      color: #666;
+    ">
+      <div style="
+        width: 40px;
+        height: 40px;
+        border: 3px solid #f0f0f0;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      "></div>
+      <p style="margin-top: 1rem;">Loading MFE Shell...</p>
+    </div>
+    
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </app-root>
+</body>
+</html>
