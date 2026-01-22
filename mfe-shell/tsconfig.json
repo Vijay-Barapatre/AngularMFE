@@ -24,6 +24,9 @@
       ],
       "@shared/event-bus": [
         "src/shared/event-bus/index.ts"
+      ],
+      "@shared/patterns": [
+        "../shared/patterns/index.ts"
       ]
     }
   },

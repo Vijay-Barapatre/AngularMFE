@@ -13,7 +13,13 @@
 5. [Security Analysis](#security-analysis)
 6. [Shared Library Architecture](#shared-library-architecture)
 7. [Inter-MFE Communication Patterns](#inter-mfe-communication-patterns)
-8. [Production Recommendations](#production-recommendations)
+8. [Domain-Based Modularization](#domain-based-modularization)
+9. [Enterprise Angular Patterns](#enterprise-angular-patterns)
+10. [Modular Design Patterns](#modular-design-patterns)
+11. [Service Layer / Domain-Driven Structure](#service-layer--domain-driven-structure)
+12. [State Management Patterns](#state-management-patterns)
+13. [Adapter and Proxy Patterns](#adapter-and-proxy-patterns)
+14. [Production Recommendations](#production-recommendations)
 
 ---
 
@@ -483,6 +489,465 @@ flowchart TB
 
 **Pros:** Reactive, no subscriptions to manage, Angular 19+ optimized  
 **Cons:** Only for state, not events
+
+---
+
+## Domain-Based Modularization
+
+This project follows **Domain-Driven Design (DDD)** principles, where each MFE represents a distinct business domain (bounded context).
+
+### Domain-to-Project Mapping
+
+```mermaid
+flowchart TB
+    subgraph "Domain: Orchestration"
+        Shell["🏠 mfe-shell<br/>Routing, Layout, MFE Coordination"]
+    end
+    
+    subgraph "Domain: Analytics & Reporting"
+        Dashboard["📊 mfe-dashboard<br/>Metrics, Charts, Business Intelligence"]
+    end
+    
+    subgraph "Domain: User Management"
+        Settings["⚙️ mfe-settings<br/>Profile, Preferences, Notifications"]
+    end
+    
+    subgraph "Domain: Cross-Cutting Concerns"
+        Auth["🔐 shared/auth<br/>Identity & Access Management"]
+        EventBus["📡 shared/event-bus<br/>Inter-domain Communication"]
+    end
+    
+    Shell --> Dashboard
+    Shell --> Settings
+    Dashboard --> Auth
+    Settings --> Auth
+    Dashboard <--> EventBus
+    Settings <--> EventBus
+```
+
+### Bounded Context Mapping
+
+| Domain | Project | Responsibility | Key Features |
+|--------|---------|----------------|--------------|
+| **Identity/Auth** | `shared/auth` | User identity, authentication, authorization | Login, guards, RBAC, token management |
+| **Analytics** | `mfe-dashboard` | Business intelligence, metrics visualization | Charts, KPIs, reports, analytics |
+| **User Management** | `mfe-settings` | User preferences, profile management | Profile editing, preferences, notifications |
+| **Orchestration** | `mfe-shell` | Application shell, routing, layout | Navigation, remote loading, fallbacks |
+| **Communication** | `shared/event-bus` | Cross-domain messaging | Pub/sub, custom events, debugging |
+
+### Feature-First Folder Structure
+
+Each MFE follows a **feature-first** organization within its domain:
+
+```
+mfe-{domain}/
+└── src/app/
+    ├── features/                    # Domain features
+    │   ├── feature-a/
+    │   │   ├── feature-a.component.ts
+    │   │   ├── feature-a.component.html
+    │   │   └── feature-a.component.scss
+    │   └── feature-b/
+    │       └── ...
+    ├── standalone/                  # Standalone mode entry
+    └── app.routes.ts                # Domain routes
+```
+
+### Current Feature Organization
+
+```
+mfe-shell/src/app/features/
+├── auth/                # Login UI
+├── dashboard/           # Fallback for remote failure
+├── settings/            # Fallback for remote failure
+└── unauthorized/        # Access denied page
+
+mfe-dashboard/src/app/features/
+├── analytics/           # Charts, metric analysis
+├── overview/            # Dashboard overview widgets
+└── dashboard-layout/    # Domain-specific layout
+
+mfe-settings/src/app/features/
+├── profile/             # User profile management
+├── preferences/         # App preferences
+├── event-monitor/       # Debug/monitoring tools
+└── settings-layout/     # Domain-specific layout
+```
+
+> [!TIP]
+> **Vertical Slice Architecture**: Each feature folder is self-contained with its component, template, and styles. This enables independent development and testing of features within each domain.
+
+### Benefits of Domain Modularization
+
+1. **Team Autonomy** - Each domain can be owned by a separate team
+2. **Independent Deployment** - Deploy one domain without affecting others
+3. **Clear Boundaries** - Well-defined interfaces between domains
+4. **Scalability** - Add new domains without restructuring existing code
+5. **Maintainability** - Changes are isolated to their respective domain
+
+---
+
+## Enterprise Angular Patterns
+
+This project implements key Angular enterprise patterns for scalability and maintainability.
+
+### Implementation Status
+
+| Pattern | Status | Evidence |
+|---------|--------|----------|
+| **Feature Modules with Public APIs** | ✅ Implemented | `shared/auth/index.ts`, `shared/event-bus/index.ts`, `shared/patterns/index.ts` |
+| **Facade Pattern** | ✅ Implemented | `AuthService` hides TokenService, JWT, storage complexity |
+| **Smart / Presentational** | ✅ Implemented | `MetricCardComponent` in `shared/patterns/` |
+| **Domain-Driven Foldering & Barrels** | ✅ Implemented | Clean imports via `@shared/auth`, `@shared/event-bus`, `@shared/patterns` |
+| **Route-Level Lazy Loading** | ✅ Implemented | `loadRemoteModule()` in `app.routes.ts` |
+| **Adapter Pattern** | ✅ Implemented | `UserAdapter`, `MetricsAdapter` in `shared/patterns/` |
+| **Proxy Pattern (Caching)** | ✅ Implemented | `CachingProxyService` in `shared/patterns/` |
+
+### Feature Modules with Clear Public APIs
+
+Each shared library exposes a **public API** via barrel files (`index.ts`):
+
+```typescript
+// shared/auth/index.ts - PUBLIC API
+// ✅ Explicitly export only what consumers need
+
+// Services
+export { AuthService } from './auth.service';
+export { TokenService } from './token.service';
+
+// Guards
+export { authGuard, publicGuard } from './auth.guard';
+export { roleGuard } from './role.guard';
+
+// Interceptors
+export { authInterceptor } from './auth.interceptor';
+
+// Models (types only, not implementation details)
+export { User, UserRole, AuthState, LoginCredentials } from './auth.models';
+
+// ❌ NOT exported: DEMO_USERS, ENCRYPTION_KEY, internal helpers
+```
+
+> [!IMPORTANT]
+> **Encapsulation Principle**: Only export what's needed. Internal helpers, constants, and implementation details stay private.
+
+### Facade Pattern for State and Side Effects
+
+The `AuthService` acts as a **Facade** - hiding complexity behind a simple interface:
+
+```mermaid
+flowchart LR
+    subgraph "Facade (AuthService)"
+        Login["login()"]
+        Logout["logout()"]
+        HasRole["hasRole()"]
+        State["isAuthenticated()"]
+    end
+    
+    subgraph "Hidden Complexity"
+        TokenService["TokenService<br/>(encryption, storage)"]
+        API["API Calls<br/>(simulated)"]
+        Signals["Signal State<br/>Management"]
+        JWT["JWT Generation<br/>& Validation"]
+    end
+    
+    Login --> TokenService
+    Login --> API
+    Login --> Signals
+    Login --> JWT
+    
+    State --> Signals
+```
+
+**Facade Benefits:**
+- Components only interact with simple methods
+- Complex logic is encapsulated and testable
+- Easy to swap implementations (mock vs. real API)
+
+### Smart / Presentational Components Separation
+
+```mermaid
+flowchart TB
+    subgraph "Smart Components (Containers)"
+        LoginComponent["LoginComponent<br/>- Injects services<br/>- Handles side effects<br/>- Manages state"]
+        DashboardLayout["DashboardLayoutComponent<br/>- Route orchestration<br/>- Data fetching"]
+    end
+    
+    subgraph "Presentational Components (Dumb)"
+        MetricCard["MetricCardComponent<br/>- @Input() data<br/>- @Output() events<br/>- Pure rendering"]
+        UserAvatar["UserAvatarComponent<br/>- @Input() user<br/>- No services"]
+    end
+    
+    LoginComponent --> |"passes data via @Input()"| MetricCard
+    DashboardLayout --> |"passes data via @Input()"| UserAvatar
+```
+
+| Smart Components | Presentational Components |
+|-----------------|---------------------------|
+| Know about services | No service dependencies |
+| Handle subscriptions | Receive data via `@Input()` |
+| Manage side effects | Emit events via `@Output()` |
+| Connected to store/state | Pure, stateless rendering |
+| Less reusable | Highly reusable |
+
+### Domain-Driven Foldering and Barrels
+
+```
+shared/
+├── auth/
+│   ├── index.ts            # 👈 Barrel: Public API
+│   ├── auth.service.ts     # Facade
+│   ├── token.service.ts    # Internal service
+│   ├── auth.guard.ts       # Route guards
+│   ├── role.guard.ts       # RBAC guards
+│   ├── auth.interceptor.ts # HTTP interceptor
+│   └── auth.models.ts      # Type definitions
+│
+└── event-bus/
+    ├── index.ts            # 👈 Barrel: Public API
+    ├── event-bus.service.ts
+    ├── custom-event.service.ts
+    └── event.models.ts
+
+# Usage across all MFEs (clean imports via barrel):
+import { AuthService, authGuard } from '@shared/auth';
+import { EventBusService } from '@shared/event-bus';
+```
+
+**Barrel File Benefits:**
+- Clean imports (`from '@shared/auth'` not `from '../../shared/auth/auth.service'`)
+- Encapsulation (internal structure hidden)
+- Refactoring safety (move files without breaking imports)
+- Tree-shaking support (unused exports removed)
+
+### Route-Level Lazy Loading and Bundle Boundaries
+
+```mermaid
+flowchart TB
+    subgraph "Initial Bundle (Shell)"
+        ShellApp["Shell App<br/>~50KB"]
+        LoginComp["Login Component"]
+        ShellLayout["Shell Layout"]
+    end
+    
+    subgraph "Lazy Loaded (On Navigation)"
+        DashBundle["📊 Dashboard Bundle<br/>loadRemoteModule('mfe-dashboard')"]
+        SettBundle["⚙️ Settings Bundle<br/>loadRemoteModule('mfe-settings')"]
+    end
+    
+    ShellApp --> |"Initial load"| LoginComp
+    ShellApp --> |"Initial load"| ShellLayout
+    ShellLayout --> |"/dashboard route"| DashBundle
+    ShellLayout --> |"/settings route"| SettBundle
+```
+
+**Route Configuration with Lazy Loading:**
+
+```typescript
+// mfe-shell/src/app/app.routes.ts
+export const routes: Routes = [
+    {
+        path: 'dashboard',
+        // 👇 Bundle boundary - loaded only when route is accessed
+        loadChildren: () => loadRemoteModule('mfe-dashboard', './routes')
+            .then(m => m.routes)
+    },
+    {
+        path: 'settings',
+        // 👇 Separate bundle - independent loading
+        loadChildren: () => loadRemoteModule('mfe-settings', './routes')
+            .then(m => m.routes)
+    }
+];
+```
+
+**Bundle Strategy:**
+
+| Bundle | Loading Strategy | Size Impact |
+|--------|-----------------|-------------|
+| Shell | Eager (initial) | Minimal - only shell + login |
+| Dashboard MFE | Lazy (on route) | Loaded when user navigates |
+| Settings MFE | Lazy (on route) | Loaded when user navigates |
+| Shared libs | Singleton shared | One copy for all MFEs |
+
+> [!TIP]
+> **Performance Benefit**: Users only download the code they need. Initial load is fast (shell only), and MFEs load on-demand.
+
+---
+
+## Modular Design Patterns
+
+### Core, Shared, and Feature Modules
+
+```mermaid
+flowchart TB
+    subgraph "Core Module (AppModule only)"
+        CoreServices["Singleton Services<br/>HTTP Interceptors<br/>App-wide Config"]
+    end
+    
+    subgraph "Shared Module (Imported by Features)"
+        SharedComponents["Reusable Components<br/>Common Directives<br/>Utility Pipes"]
+    end
+    
+    subgraph "Feature Modules (Business Domains)"
+        UserModule["UserModule<br/>(Profile, Settings)"]
+        DashboardModule["DashboardModule<br/>(Metrics, Analytics)"]
+        OrderModule["OrderModule<br/>(Cart, Checkout)"]
+    end
+    
+    CoreServices --> SharedComponents
+    SharedComponents --> UserModule
+    SharedComponents --> DashboardModule
+    SharedComponents --> OrderModule
+```
+
+| Module Type | Purpose | Import Location | Example |
+|-------------|---------|-----------------|---------|
+| **Core** | Singleton services, app-wide config | Root module only | `AuthService`, `LoggingService` |
+| **Shared** | Reusable UI components, pipes, directives | Any feature module | `ButtonComponent`, `DatePipe` |
+| **Feature** | Business domain functionality | Lazy loaded on route | `mfe-dashboard`, `mfe-settings` |
+
+### Implementation in This Project
+
+| Module Type | Implementation | Files |
+|-------------|---------------|-------|
+| **Core** | `@shared/auth`, `@shared/event-bus` | Singleton services via `providedIn: 'root'` |
+| **Shared** | Barrel exports | `shared/auth/index.ts`, `shared/event-bus/index.ts` |
+| **Feature** | Each MFE | `mfe-dashboard`, `mfe-settings` |
+
+---
+
+## Service Layer / Domain-Driven Structure
+
+Organizing code around **business domains** instead of technical function:
+
+```
+✅ DOMAIN-DRIVEN (Recommended)          ❌ TECHNICAL-DRIVEN (Avoid)
+├── user/                               ├── components/
+│   ├── user.component.ts               │   ├── user.component.ts
+│   ├── user.service.ts                 │   ├── order.component.ts
+│   ├── user.model.ts                   ├── services/
+│   └── user.guard.ts                   │   ├── user.service.ts
+├── order/                              │   ├── order.service.ts
+│   ├── order.component.ts              ├── models/
+│   ├── order.service.ts                │   ├── user.model.ts
+│   └── order.model.ts                  │   └── order.model.ts
+```
+
+**Benefits:**
+- Clear ownership boundaries for teams
+- Easier to understand and navigate
+- Better encapsulation and modularity
+- Supports micro frontend extraction
+
+---
+
+## State Management Patterns
+
+### Signal-Based State (This Project)
+
+```typescript
+// AuthService - Signal-based state management
+private _authState = signal<AuthState>(INITIAL_AUTH_STATE);
+
+// Public readonly signals
+readonly isAuthenticated = computed(() => this._authState().isAuthenticated);
+readonly user = computed(() => this._authState().user);
+readonly userRole = computed(() => this._authState().user?.role ?? null);
+```
+
+### NgRx Pattern (For Complex State)
+
+```mermaid
+flowchart LR
+    Component["Component<br/>dispatch(action)"]
+    Action["Action<br/>{type, payload}"]
+    Reducer["Reducer<br/>Pure function"]
+    Store["Store<br/>Single source of truth"]
+    Effect["Effects<br/>Side effects (API)"]
+    Selector["Selector<br/>Derived state"]
+    
+    Component --> Action --> Reducer --> Store
+    Store --> Selector --> Component
+    Action --> Effect --> Action
+```
+
+| Approach | Use Case | Complexity | This Project |
+|----------|----------|------------|--------------|
+| **Signals** | Simple/medium state | Low | ✅ Used |
+| **NgRx** | Complex cross-feature state | High | ❌ Not needed |
+| **Services + RxJS** | Medium state | Medium | ✅ EventBus uses this |
+
+---
+
+## Adapter and Proxy Patterns
+
+### Adapter Pattern (Data Transformation)
+
+The **Adapter** pattern transforms data from one format to another:
+
+```typescript
+// API returns snake_case, app uses camelCase
+interface ApiUser {
+    user_id: string;
+    first_name: string;
+    last_name: string;
+}
+
+interface User {
+    userId: string;
+    firstName: string;
+    lastName: string;
+}
+
+// UserAdapter - transforms API response to app model
+class UserAdapter {
+    static toUser(apiUser: ApiUser): User {
+        return {
+            userId: apiUser.user_id,
+            firstName: apiUser.first_name,
+            lastName: apiUser.last_name
+        };
+    }
+}
+```
+
+### Proxy Pattern (Caching/Authorization)
+
+The **Proxy** pattern adds extra functionality (caching, logging, auth) to service calls:
+
+```typescript
+// CachingProxy - adds caching to HTTP calls
+@Injectable({ providedIn: 'root' })
+export class CachingApiProxy {
+    private cache = new Map<string, { data: any; expiry: number }>();
+    
+    constructor(private http: HttpClient) {}
+    
+    get<T>(url: string, ttl = 60000): Observable<T> {
+        const cached = this.cache.get(url);
+        if (cached && cached.expiry > Date.now()) {
+            return of(cached.data);  // Return cached data
+        }
+        
+        return this.http.get<T>(url).pipe(
+            tap(data => this.cache.set(url, { data, expiry: Date.now() + ttl }))
+        );
+    }
+}
+```
+
+### Implementation in This Project
+
+| Pattern | Implementation | File |
+|---------|---------------|------|
+| **Adapter** | UserAdapter, MetricsAdapter | [api-adapter.ts](file:///d:/MyPOC/Angular/AngularMFE/shared/patterns/api-adapter.ts) |
+| **Proxy (Caching)** | CachingProxyService | [caching-proxy.service.ts](file:///d:/MyPOC/Angular/AngularMFE/shared/patterns/caching-proxy.service.ts) |
+| **Proxy (Auth)** | Auth interceptor (adds tokens) | [auth.interceptor.ts](file:///d:/MyPOC/Angular/AngularMFE/shared/auth/auth.interceptor.ts) |
+| **Presentational** | MetricCardComponent | [metric-card.component.ts](file:///d:/MyPOC/Angular/AngularMFE/shared/patterns/metric-card.component.ts) |
+
+> [!TIP]
+> Import these patterns via: `import { UserAdapter, CachingProxyService, MetricCardComponent } from '@shared/patterns';`
 
 ---
 

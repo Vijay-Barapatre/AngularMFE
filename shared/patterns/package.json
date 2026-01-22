@@ -1,0 +1,11 @@
+{
+    "name": "@shared/patterns",
+    "version": "1.0.0",
+    "description": "Design pattern implementations for learning and demonstration",
+    "main": "index.ts",
+    "peerDependencies": {
+        "@angular/core": ">=17.0.0",
+        "@angular/common": ">=17.0.0",
+        "rxjs": ">=7.0.0"
+    }
+}

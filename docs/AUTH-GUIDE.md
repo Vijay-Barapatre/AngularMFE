@@ -2,6 +2,21 @@
 
 > **Complete guide to securing your MFE Architecture**
 
+## 📑 Table of Contents
+
+1. [Overview](#-overview)
+2. [Authentication Flow](#-authentication-flow)
+3. [AuthService](#-authservice)
+4. [Token Management](#-token-management)
+5. [Route Guards](#️-route-guards)
+6. [Role-Based Access Control (RBAC)](#-role-based-access-control-rbac)
+7. [HTTP Interceptor](#-http-interceptor)
+8. [Demo Credentials](#-demo-credentials)
+9. [Security Notes](#️-security-notes)
+10. [Related Files](#-related-files)
+
+---
+
 ## 📊 Overview
 
 This guide covers:

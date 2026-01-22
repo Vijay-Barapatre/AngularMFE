@@ -30,6 +30,9 @@
       ],
       "@shared/event-bus/*": [
         "src/shared/event-bus/*"
+      ],
+      "@shared/patterns": [
+        "../shared/patterns/index.ts"
       ]
     }
   },
